@@ -10,6 +10,7 @@ I will be releasing an executable version of the program soon
 * Allows you to queue multiple videos for download
 * No ad's!
 * Allows download into both audio and video forms
+* Allows the selection of multiple different file types (flac, ogg, webm, wav)
 
 ## FFMPEG
 
