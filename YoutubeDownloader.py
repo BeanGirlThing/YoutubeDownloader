@@ -14,6 +14,7 @@ class main:  # Define the main class
     config_table = None
     videos = []
     video_table = None
+    extra_dir = ""
 
     config = configparser.ConfigParser() # Create a config object
     config.read("config.ini") # Read the config file
@@ -66,33 +67,75 @@ class main:  # Define the main class
             exit() # Terminate the program
 
         self.config_table.add_row(["Output file location",self.download_location]) # Create a setting value with the download location in it
+        self.config_table.add_row(["Sub Directory","None"])
+
         self.video_table = prettytable.PrettyTable(["ID", "Title", "URL", "Length", "Views"]) # Create the video table
 
         while True: # Video adding loop
             print(self.config_table) # Print out the tables made prior for the user to look at
             self.generate_video_table() # Add any new video values to the video table
             print(self.video_table) # Then print the video table
-            print("Welcome\n" 
+            print("\nWelcome\n\n" 
                   "Type a URL and hit enter to have it added to the list\n"
                   "Type 'del <ID>' to remove a video from the list\n"
-                  "Type 'com' to download the videos and finish the program\n")
+                  "Type 'com' to download the videos and finish the program\n"
+                  "Type 'sldir <Name>' to select an existing directory (Must be in the original download folder) and have downloads sent there instead\n"
+                  "Type 'exdir <Name>' to create a new directory in the download folder and have downloads sent there instead\n"
+                  "Type 'cldir' to clear the selected directory\n")
 
             usr_input = input(">") # Get the users input
 
-            if usr_input[0]+usr_input[1]+usr_input[2] == "del": # If the user tries to delete a value
+            if usr_input.split(" ")[0] == "exdir":
+                try:
+                    file_friendly_name = "".join([c for c in usr_input.split(" ")[1] if c.isalpha() or c.isdigit() or c==' ']).rstrip().replace(" ","_")
+                    os.mkdir(self.download_location+"/"+file_friendly_name)
+                    self.extra_dir = "/"+file_friendly_name
+                    self.config_table.del_row(2)
+                    self.config_table.add_row(["Sub Directory",self.extra_dir])
+                except IndexError:
+                    print("Please make sure you input a name for the folder")
+                except OSError:
+                    print("Directory already exists, please use 'sldir <Name>' instead")
+
+            elif usr_input.split(" ")[0] == "cldir":
+
+                if self.extra_dir == "":
+                    print("Sub directory hasnt been selected therefore cannot be reset, no action taken")
+                    continue
+                else:
+                    self.extra_dir = ""
+                    self.config_table.del_row(2)
+                    self.config_table.add_row(["Sub Directory","None"])
+                    continue
+
+
+            elif usr_input.split(" ")[0] == "sldir":
+
+                if os.path.isdir(self.download_location+"/"+usr_input.split(" ")[1]):
+                    self.extra_dir = "/"+usr_input.split(" ")[1]
+                    self.config_table.del_row(2)
+                    self.config_table.add_row(["Sub Directory",self.extra_dir])
+
+                else:
+                    print("The path "+self.download_location+"/"+usr_input.split(" ")[1]+" Does not exist")
+
+            elif usr_input.split(" ")[0] == "del": # If the user tries to delete a value
                 try: # Try catch
                     del self.videos[int(usr_input.split(" ")[1])] # Attempt to delete the video assigned to the number the user inputted
+
                 except ValueError: # If the user puts anything in apart from a number
                     print("Value error, make sure you only put in the ID of the video you wish to delete")
                     continue # Repeat the loop
+
                 except IndexError: # If the user inputs a number thats not assigned to a value in the list
                     print("Please input a valid ID")
                     continue # Repeat the loop
+
                 except Exception as e: # If an unexpected error occours
                     print(str(e) + "   Unexpected error!, please try again!")
                     continue # Repeat the loop
 
-            elif usr_input[0]+usr_input[1]+usr_input[2] == "com": # If the user types com
+            elif usr_input.split(" ")[0] == "com": # If the user types com
                 self.download_and_complete() # Begin downloading the videos into the desired formats
                 break
 
@@ -115,6 +158,7 @@ class main:  # Define the main class
             views = video.views # Get the videos view total
             video_object = [video,title,length,views,url] # Put all of that information into a list
             return video_object # return that list
+
         except: # If the URL is invalid
             print("We have run into an error processing the URL\nPlease check that it is correct")
             return None
@@ -124,32 +168,53 @@ class main:  # Define the main class
 
         if self.format == 0: # If the user wants it in a video format
             for i in range(0,len(self.videos)): # Repeat for the amount of videos that have been added
+
                 print("Downloading - "+self.videos[i][1]) # tell the user the title of the current video being downloaded
+
                 current = self.videos[i][0] # Get the video object created in "get_video_information"
+
                 filenm = self.videos[i][1] # Get the title of the video to be used as the file name
                 filenm = "".join([c for c in filenm if c.isalpha() or c.isdigit() or c==' ']).rstrip().replace(" ","_") # Make sure that the title is file name friendly
 
+                if not os.path.isdir(self.download_location+self.extra_dir):
+                    print("Directory being used to output the downloads no-longer exists, terminating program")
+                    exit()
+
                 if self.file_format == ".mp4":
-                    current.streams.filter(progressive=True, file_extension="mp4").order_by("resolution").desc().first().download(output_path=self.download_location,filename=filenm) # Download the video
+                    current.streams.filter(progressive=True, file_extension="mp4").order_by("resolution").desc().first().download(output_path=self.download_location+self.extra_dir,filename=filenm) # Download the video
+
                 else:
-                    current.streams.filter(progressive=True, file_extension="mp4").order_by("resolution").desc().first().download(output_path=self.download_location,filename=filenm)  # Download the video
+                    current.streams.filter(progressive=True, file_extension="mp4").order_by("resolution").desc().first().download(output_path=self.download_location+self.extra_dir,filename=filenm)  # Download the video
+
                     print("File downloaded, Converting from mp4 to "+self.file_format)
-                    os.system('ffmpeg -loglevel panic -i ' + self.download_location + "/" + filenm + ".mp4" + ' ' + self.download_location + "/" + filenm + self.file_format)  # Use FFMPEG to convert the video to .mp3
+                    os.system('ffmpeg -loglevel panic -i ' + self.download_location + self.extra_dir + "/" + filenm + ".mp4" + ' ' + self.download_location + self.extra_dir + "/" + filenm + self.file_format)  # Use FFMPEG to convert the video to .mp3
+
                     print("Converted! Removing raw download file (This will take tenths of a second)")
-                    os.remove(self.download_location+"/"+filenm+".mp4")
+                    os.remove(self.download_location + self.extra_dir + "/"+filenm+".mp4")
+
                 print("Done!")
 
         elif self.format == 1: # If the user wants it as audio
             for i in range(0,len(self.videos)): # Repeat for the amount of videos that have been added
+
                 print("Downloading - "+self.videos[i][1]) # Tell the user the title of the current video being downloaded
+
+                if not os.path.isdir(self.download_location+self.extra_dir):
+                    print("Directory being used to output the downloads no-longer exists, terminating program")
+                    exit()
+
                 filenm = self.videos[i][1] # Get the title of the video to be used as the file name
                 filenm = "".join([c for c in filenm if c.isalpha() or c.isdigit() or c==' ']).rstrip().replace(" ","_") # Make sure that the title is file name friendly
+
                 current = self.videos[i][0] # get the video object created in "get_video_information"
-                current.streams.filter(only_audio=True,file_extension="mp4").desc().first().download(self.download_location,filename=filenm) # Download the video as audio only
+                current.streams.filter(only_audio=True,file_extension="mp4").desc().first().download(self.download_location + self.extra_dir,filename=filenm) # Download the video as audio only
+
                 print("File downloaded, converting from mp4 (Audio) to "+self.file_format)
-                os.system('ffmpeg -loglevel panic -i ' + self.download_location+"/"+filenm+".mp4" + ' ' + self.download_location + "/" + filenm + self.file_format) # Use FFMPEG to convert the video to .mp3
+                os.system('ffmpeg -loglevel panic -i ' + self.download_location + self.extra_dir + "/"+filenm+".mp4" + ' ' + self.download_location + self.extra_dir + "/" + filenm + self.file_format) # Use FFMPEG to convert the video to .mp3
+
                 print("Removing raw download file (This will take tenths of a second)")
-                os.remove(self.download_location+"/"+filenm+".mp4") # Delete the original mp3 file
+                os.remove(self.download_location+ self.extra_dir +"/"+filenm+".mp4") # Delete the original mp3 file
+
                 print("Done!")
 
 
