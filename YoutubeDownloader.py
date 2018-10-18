@@ -10,6 +10,7 @@ class main:  # Define the main class
 
 
     format = None # Create some basic variables the program needs to pass around
+    file_format = None
     config_table = None
     videos = []
     video_table = None
@@ -51,13 +52,17 @@ class main:  # Define the main class
                 print("Please input either 'video', 'audio', 'v' or 'a' ")
                 continue # Repeat the loop
 
+        self.select_output_format()
+
         self.config_table = prettytable.PrettyTable(["Setting","Value"]) # Create the setting table
         if self.format == 0: # If the user wants a video
-            self.config_table.add_row(["Output file format","Video (.mp4)"]) # Create a setting value with video in it
+            self.config_table.add_row(["Output file format","Video ("+self.file_format+")"]) # Create a setting value with video in it
         elif self.format == 1: # If the user wants audio
-            self.config_table.add_row(["Output file format","Audio (.mp3)"]) # Create a setting value with audio in it
+            self.config_table.add_row(["Output file format","Audio ("+self.file_format+")"]) # Create a setting value with audio in it
         else: # If format is neither, which it never should be
-            print("self.format shouldn't have any value apart from 1 or 0 yet it does, Terminating program")
+            print("self.format shouldn't have any value apart from 1 or 0 yet it does, "
+                  "Quit tampering, "
+                  "Terminating program")
             exit() # Terminate the program
 
         self.config_table.add_row(["Output file location",self.download_location]) # Create a setting value with the download location in it
@@ -89,6 +94,7 @@ class main:  # Define the main class
 
             elif usr_input[0]+usr_input[1]+usr_input[2] == "com": # If the user types com
                 self.download_and_complete() # Begin downloading the videos into the desired formats
+                break
 
             else: # If neither options are chosen the program will assume it is a link to a video
                 curr_video = self.get_video_information(usr_input) # Run the get video information function
@@ -122,7 +128,15 @@ class main:  # Define the main class
                 current = self.videos[i][0] # Get the video object created in "get_video_information"
                 filenm = self.videos[i][1] # Get the title of the video to be used as the file name
                 filenm = "".join([c for c in filenm if c.isalpha() or c.isdigit() or c==' ']).rstrip().replace(" ","_") # Make sure that the title is file name friendly
-                current.streams.filter(progressive=True,file_extension="mp4").order_by("resolution").desc().first().download(output_path=self.download_location,filename=filenm) # Download the video
+
+                if self.file_format == ".mp4":
+                    current.streams.filter(progressive=True, file_extension="mp4").order_by("resolution").desc().first().download(output_path=self.download_location,filename=filenm) # Download the video
+                else:
+                    current.streams.filter(progressive=True, file_extension="mp4").order_by("resolution").desc().first().download(output_path=self.download_location,filename=filenm)  # Download the video
+                    print("File downloaded, Converting from mp4 to "+self.file_format)
+                    os.system('ffmpeg -loglevel panic -i ' + self.download_location + "/" + filenm + ".mp4" + ' ' + self.download_location + "/" + filenm + self.file_format)  # Use FFMPEG to convert the video to .mp3
+                    print("Converted! Removing raw download file (This will take tenths of a second)")
+                    os.remove(self.download_location+"/"+filenm+".mp4")
                 print("Done!")
 
         elif self.format == 1: # If the user wants it as audio
@@ -132,15 +146,70 @@ class main:  # Define the main class
                 filenm = "".join([c for c in filenm if c.isalpha() or c.isdigit() or c==' ']).rstrip().replace(" ","_") # Make sure that the title is file name friendly
                 current = self.videos[i][0] # get the video object created in "get_video_information"
                 current.streams.filter(only_audio=True,file_extension="mp4").desc().first().download(self.download_location,filename=filenm) # Download the video as audio only
-                print("File downloaded, converting from mp4 (Audio) to mp3")
-                os.system('ffmpeg -loglevel panic -i ' + self.download_location+"/"+filenm+".mp4" + ' ' + self.download_location + "/" + filenm + '.mp3') # Use FFMPEG to convert the video to .mp3
+                print("File downloaded, converting from mp4 (Audio) to "+self.file_format)
+                os.system('ffmpeg -loglevel panic -i ' + self.download_location+"/"+filenm+".mp4" + ' ' + self.download_location + "/" + filenm + self.file_format) # Use FFMPEG to convert the video to .mp3
                 print("Removing raw download file (This will take tenths of a second)")
                 os.remove(self.download_location+"/"+filenm+".mp4") # Delete the original mp3 file
                 print("Done!")
 
-        print("Thank you for using my program\nGoodbye")
-        exit() # Terminate the program
+
+
+    def select_output_format(self):
+        if self.format == 0:
+            formats = [".avi",".mp4",".f4v",".flv",".mov",".webm"]
+            print("What video format do you want the program to output?\n"
+                  "[0] AVI \n"
+                  "[1] MP4 \n"
+                  "[2] F4V \n"
+                  "[3] FLV \n"
+                  "[4] MOV \n"
+                  "[5] WEBM \n"
+                  "Please pick one of the options above by entering their ID")
+
+            while True:
+                id = input("(ID)>")
+                try:
+                    self.file_format = formats[int(id)]
+                    break
+                except ValueError:
+                    print("Please make sure you input a numerical value as the ID")
+                    continue
+                except IndexError:
+                    print("Please make sure you input a number within the range of values")
+                    continue
+                except:
+                    print("An unexpected error has occoured, please check your input and try again")
+                    continue
+
+        if self.format == 1:
+            formats = [".aac",".mp3",".ogg",".wav",".flac",".m4a"]
+            print("What audio format do you want the program to output?\n"
+                  "[0] AAC \n"
+                  "[1] MP3 \n"
+                  "[2] OGG \n"
+                  "[3] WAV \n"
+                  "[4] FLAC \n"
+                  "[5] M4A \n"
+                  "Please pick one of the options above by entering their ID")
+
+            while True:
+                id = input("(ID)>")
+                try:
+                    self.file_format = formats[int(id)]
+                    break
+                except ValueError:
+                    print("Please make sure you input a numerical value as the ID")
+                    continue
+                except IndexError:
+                    print("Please make sure you input a number within the range of values")
+                    continue
+                except:
+                    print("An unexpected error has occoured, please check your input and try again")
+                    continue
+
+
 
 
 if __name__ == '__main__': # If the program is being run as a script and not imported
     main() # Run the main class
+    print("Thank you for using my program\nGoodbye")
