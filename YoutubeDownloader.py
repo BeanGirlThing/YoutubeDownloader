@@ -15,31 +15,27 @@ class main:  # Define the main class
     videos = []
     video_table = None
     extra_dir = ""
+    download_interface = []
 
     config = configparser.ConfigParser() # Create a config object
     config.read("config.ini") # Read the config file
     download_location = config.get("config","download_location") # Create a variable containing the download location
+    ffmpeg_permission = config.get("config","allow_ffmpeg_download")
 
     def __init__(self): # Define the initializer function
 
         print("Welcome to Jessica's Youtube video converter")
 
         if not os.path.isdir(self.download_location): # If the download location path doesnt exist then
-            print("Download directory does not exist, please change and retry")
-            exit() # Terminate the program
+            self.close_with_message("Download directory does not exist, please change and retry")
 
-        print("This program uses ffmpeg to work, (If already installed type Y) do you wish to install this program and continue?\n(If no then the program will exit)")
-        cont = input("Y/N: ") # Query the user as to wether they are happy for the program to install ffmpeg (if missing)
-        if cont.upper() == "Y": # If they agree
-            import imageio # Import image IO which will sometimes just randomly jump into installing ffmpeg
-            imageio.plugins.ffmpeg.download() # If it doesnt then run the download
-        elif cont.upper() == "N": # If the user disagrees
-            print("Goodbye!")
-            exit() # Terminate the program
-        else: # If they put in an unrecognised character or string
-            print("Invalid response, assuming N")
-            print("Goodbye!")
-            exit() # Terminate the program
+        if self.ffmpeg_permission.upper() != "TRUE":
+            self.close_with_message("\nThe setting 'allow_ffmpeg_download' is set to "+self.ffmpeg_permission+","
+                                    " the setting needs to be 'true' for the program"
+                                    " to work\n\nEnabling this setting will install ffmpeg"
+                                    " the next time you start this program (Unless you"
+                                    " already have FFMPEG installed\n")
+
 
         while True: # Loop to query the user on whether they want the output files to be in audio or video format
             typeofoutput = input("Do you want the output files to be video [V] or audio [A]? ")
@@ -61,10 +57,9 @@ class main:  # Define the main class
         elif self.format == 1: # If the user wants audio
             self.config_table.add_row(["Output file format","Audio ("+self.file_format+")"]) # Create a setting value with audio in it
         else: # If format is neither, which it never should be
-            print("self.format shouldn't have any value apart from 1 or 0 yet it does, "
-                  "Quit tampering, "
-                  "Terminating program")
-            exit() # Terminate the program
+            self.close_with_message("self.format shouldn't have any value apart from 1 or 0 yet it does, "
+                                    "Quit tampering, "
+                                    "Terminating program")
 
         self.config_table.add_row(["Output file location",self.download_location]) # Create a setting value with the download location in it
         self.config_table.add_row(["Sub Directory","None"])
@@ -72,13 +67,14 @@ class main:  # Define the main class
         self.video_table = prettytable.PrettyTable(["ID", "Title", "URL", "Length", "Views"]) # Create the video table
 
         while True: # Video adding loop
+            print("\n"*50)
             print(self.config_table) # Print out the tables made prior for the user to look at
             self.generate_video_table() # Add any new video values to the video table
             print(self.video_table) # Then print the video table
             print("\nWelcome\n\n" 
                   "Type a URL and hit enter to have it added to the list\n"
-                  "Type 'del <ID>' to remove a video from the list\n"
-                  "Type 'com' to download the videos and finish the program\n"
+                  "Type 'remove <ID>' to remove a video from the list\n"
+                  "Type 'complete' to download the videos and finish the program\n"
                   "Type 'sldir <Name>' to select an existing directory (Must be in the original download folder) and have downloads sent there instead\n"
                   "Type 'exdir <Name>' to create a new directory in the download folder and have downloads sent there instead\n"
                   "Type 'cldir' to clear the selected directory\n")
@@ -98,7 +94,6 @@ class main:  # Define the main class
                     print("Directory already exists, please use 'sldir <Name>' instead")
 
             elif usr_input.split(" ")[0] == "cldir":
-
                 if self.extra_dir == "":
                     print("Sub directory hasnt been selected therefore cannot be reset, no action taken")
                     continue
@@ -108,9 +103,7 @@ class main:  # Define the main class
                     self.config_table.add_row(["Sub Directory","None"])
                     continue
 
-
             elif usr_input.split(" ")[0] == "sldir":
-
                 if os.path.isdir(self.download_location+"/"+usr_input.split(" ")[1]):
                     self.extra_dir = "/"+usr_input.split(" ")[1]
                     self.config_table.del_row(2)
@@ -119,7 +112,7 @@ class main:  # Define the main class
                 else:
                     print("The path "+self.download_location+"/"+usr_input.split(" ")[1]+" Does not exist")
 
-            elif usr_input.split(" ")[0] == "del": # If the user tries to delete a value
+            elif usr_input.split(" ")[0] == "remove": # If the user tries to delete a value
                 try: # Try catch
                     del self.videos[int(usr_input.split(" ")[1])] # Attempt to delete the video assigned to the number the user inputted
 
@@ -135,7 +128,7 @@ class main:  # Define the main class
                     print(str(e) + "   Unexpected error!, please try again!")
                     continue # Repeat the loop
 
-            elif usr_input.split(" ")[0] == "com": # If the user types com
+            elif usr_input.split(" ")[0] == "complete": # If the user types com
                 self.download_and_complete() # Begin downloading the videos into the desired formats
                 break
 
@@ -164,12 +157,23 @@ class main:  # Define the main class
             return None
 
     def download_and_complete(self): # Download and complete function
-        print("Download times can vary depending on your internet connection and the length of the video, this can take quite a while... go get a drink or something")
+
+        self.download_interface = [prettytable.PrettyTable(["In queue"]),prettytable.PrettyTable(["Video Title","Progress"]),prettytable.PrettyTable(["Complete"])]
+
+        for i in range(0,len(self.videos)):
+
+            self.download_interface[0].add_row([self.videos[i][1]])
 
         if self.format == 0: # If the user wants it in a video format
+
             for i in range(0,len(self.videos)): # Repeat for the amount of videos that have been added
 
-                print("Downloading - "+self.videos[i][1]) # tell the user the title of the current video being downloaded
+                self.print_download_tables()
+
+                self.download_interface[0].del_row(0)
+                self.download_interface[1].add_row([self.videos[i][1],"Downloading"])
+
+                self.print_download_tables()
 
                 current = self.videos[i][0] # Get the video object created in "get_video_information"
 
@@ -177,8 +181,7 @@ class main:  # Define the main class
                 filenm = "".join([c for c in filenm if c.isalpha() or c.isdigit() or c==' ']).rstrip().replace(" ","_") # Make sure that the title is file name friendly
 
                 if not os.path.isdir(self.download_location+self.extra_dir):
-                    print("Directory being used to output the downloads no-longer exists, terminating program")
-                    exit()
+                    self.close_with_message("Directory being used to output the downloads no-longer exists, terminating program")
 
                 if self.file_format == ".mp4":
                     current.streams.filter(progressive=True, file_extension="mp4").order_by("resolution").desc().first().download(output_path=self.download_location+self.extra_dir,filename=filenm) # Download the video
@@ -186,22 +189,34 @@ class main:  # Define the main class
                 else:
                     current.streams.filter(progressive=True, file_extension="mp4").order_by("resolution").desc().first().download(output_path=self.download_location+self.extra_dir,filename=filenm)  # Download the video
 
-                    print("File downloaded, Converting from mp4 to "+self.file_format)
+                    self.download_interface[1].clear_rows()
+                    self.download_interface[1].add_row([self.videos[i][1],"Converting file formats"])
+                    self.print_download_tables()
+
                     os.system('ffmpeg -loglevel panic -i ' + self.download_location + self.extra_dir + "/" + filenm + ".mp4" + ' ' + self.download_location + self.extra_dir + "/" + filenm + self.file_format)  # Use FFMPEG to convert the video to .mp3
 
-                    print("Converted! Removing raw download file (This will take tenths of a second)")
+                    self.download_interface[1].clear_rows()
+                    self.download_interface[1].add_row([self.videos[i][1],"Deleting temporary files"])
+                    self.print_download_tables()
+
                     os.remove(self.download_location + self.extra_dir + "/"+filenm+".mp4")
 
-                print("Done!")
+                self.download_interface[2].add_row([self.videos[i][1]])
+                self.download_interface[1].clear_rows()
 
         elif self.format == 1: # If the user wants it as audio
+
             for i in range(0,len(self.videos)): # Repeat for the amount of videos that have been added
 
-                print("Downloading - "+self.videos[i][1]) # Tell the user the title of the current video being downloaded
+                self.print_download_tables()
+
+                self.download_interface[0].del_row(0)
+                self.download_interface[1].add_row([self.videos[i][1],"Downloading"])
+
+                self.print_download_tables()
 
                 if not os.path.isdir(self.download_location+self.extra_dir):
-                    print("Directory being used to output the downloads no-longer exists, terminating program")
-                    exit()
+                    self.close_with_message("Directory being used to output the downloads no-longer exists, terminating program")
 
                 filenm = self.videos[i][1] # Get the title of the video to be used as the file name
                 filenm = "".join([c for c in filenm if c.isalpha() or c.isdigit() or c==' ']).rstrip().replace(" ","_") # Make sure that the title is file name friendly
@@ -209,15 +224,31 @@ class main:  # Define the main class
                 current = self.videos[i][0] # get the video object created in "get_video_information"
                 current.streams.filter(only_audio=True,file_extension="mp4").desc().first().download(self.download_location + self.extra_dir,filename=filenm) # Download the video as audio only
 
-                print("File downloaded, converting from mp4 (Audio) to "+self.file_format)
+                self.download_interface[1].clear_rows()
+                self.download_interface[1].add_row([self.videos[i][1], "Converting file formats"])
+                self.print_download_tables()
+
                 os.system('ffmpeg -loglevel panic -i ' + self.download_location + self.extra_dir + "/"+filenm+".mp4" + ' ' + self.download_location + self.extra_dir + "/" + filenm + self.file_format) # Use FFMPEG to convert the video to .mp3
 
-                print("Removing raw download file (This will take tenths of a second)")
+                self.download_interface[1].clear_rows()
+                self.download_interface[1].add_row([self.videos[i][1], "Deleting temporary files"])
+                self.print_download_tables()
+
                 os.remove(self.download_location+ self.extra_dir +"/"+filenm+".mp4") # Delete the original mp3 file
 
-                print("Done!")
+                self.download_interface[2].add_row([self.videos[i][1]])
+                self.download_interface[1].clear_rows()
+
+        self.print_download_tables()
 
 
+
+    def print_download_tables(self):
+        print("\n"*50)
+        print("Download times can vary depending on your internet connection and the length of the video, this can take quite a while... go get a drink or something")
+        print(self.download_interface[0].get_string(title="Pending Operations"))
+        print(self.download_interface[1].get_string(title="In progress"))
+        print(self.download_interface[2].get_string(title="Complete"))
 
     def select_output_format(self):
         if self.format == 0:
@@ -272,7 +303,10 @@ class main:  # Define the main class
                     print("An unexpected error has occoured, please check your input and try again")
                     continue
 
-
+    def close_with_message(self,message):
+        print(message)
+        input("Press enter to exit")
+        exit()
 
 
 if __name__ == '__main__': # If the program is being run as a script and not imported
