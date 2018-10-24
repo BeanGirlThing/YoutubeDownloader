@@ -35,6 +35,9 @@ class main:  # Define the main class
                                     " to work\n\nEnabling this setting will install ffmpeg"
                                     " the next time you start this program (Unless you"
                                     " already have FFMPEG installed\n")
+        else:
+            import imageio
+            imageio.plugins.ffmpeg.download()
 
 
         while True: # Loop to query the user on whether they want the output files to be in audio or video format
