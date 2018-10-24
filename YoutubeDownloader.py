@@ -16,6 +16,7 @@ class main:  # Define the main class
     video_table = None
     extra_dir = ""
     download_interface = []
+    ffmpeg_executable = None
 
     config = configparser.ConfigParser() # Create a config object
     config.read("config.ini") # Read the config file
@@ -37,7 +38,11 @@ class main:  # Define the main class
                                     " already have FFMPEG installed\n")
         else:
             import imageio
-            imageio.plugins.ffmpeg.download()
+            imageio.plugins.ffmpeg.download("./")
+            for files in os.walk("./ffmpeg"):
+                for filename in files:
+                    if "exe" in str(filename):
+                        self.ffmpeg_executable = str(filename[0])
 
 
         while True: # Loop to query the user on whether they want the output files to be in audio or video format
@@ -213,7 +218,8 @@ class main:  # Define the main class
                     self.download_interface[1].add_row([self.videos[i][1],"Converting file formats"]) # Replace that with a new value
                     self.print_download_tables() # Print the download tables
 
-                    os.system('ffmpeg -loglevel panic -i ' + self.download_location + self.extra_dir + "/" + filenm + ".mp4" + ' ' + self.download_location + self.extra_dir + "/" + filenm + self.file_format)  # Use FFMPEG to convert the video to .mp3
+
+                    os.system('.\\ffmpeg\\'+self.ffmpeg_executable+' -loglevel panic -i ' + self.download_location + self.extra_dir + "/" + filenm + ".mp4" + ' ' + self.download_location + self.extra_dir + "/" + filenm + self.file_format)  # Use FFMPEG to convert the video to .mp3
 
                     self.download_interface[1].clear_rows() # Clear the in progress table
                     self.download_interface[1].add_row([self.videos[i][1],"Deleting temporary files"]) # Replace that with a new value
@@ -248,7 +254,7 @@ class main:  # Define the main class
                 self.download_interface[1].add_row([self.videos[i][1], "Converting file formats"]) # Replace that with a new value
                 self.print_download_tables() # Print the download tables
 
-                os.system('ffmpeg -loglevel panic -i ' + self.download_location + self.extra_dir + "/"+filenm+".mp4" + ' ' + self.download_location + self.extra_dir + "/" + filenm + self.file_format) # Use FFMPEG to convert the video to .mp3
+                os.system('.\\ffmpeg\\'+self.ffmpeg_executable+' -loglevel panic -i ' + self.download_location + self.extra_dir + "/"+filenm+".mp4" + ' ' + self.download_location + self.extra_dir + "/" + filenm + self.file_format) # Use FFMPEG to convert the video to .mp3
 
                 self.download_interface[1].clear_rows() # Clear the progress table
                 self.download_interface[1].add_row([self.videos[i][1], "Deleting temporary files"]) # Replace that with a new value
@@ -330,3 +336,4 @@ class main:  # Define the main class
 if __name__ == '__main__': # If the program is being run as a script and not imported
     main() # Run the main class
     print("Thank you for using my program\nGoodbye")
+    input("Press enter to exit")
