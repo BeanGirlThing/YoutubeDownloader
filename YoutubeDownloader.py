@@ -2,6 +2,7 @@ import pytube
 import prettytable
 import configparser
 import os
+import imageio
 
 # Dependency imports above
 
@@ -36,13 +37,12 @@ class main:  # Define the main class
                                     " to work\n\nEnabling this setting will install ffmpeg"
                                     " the next time you start this program (Unless you"
                                     " already have FFMPEG installed\n")
-        else:
-            import imageio
-            imageio.plugins.ffmpeg.download("./")
-            for files in os.walk("./ffmpeg"):
-                for filename in files:
-                    if "exe" in str(filename):
-                        self.ffmpeg_executable = str(filename[0])
+        else: # If the config option is set to true
+            imageio.plugins.ffmpeg.download("./") # Download ffmpeg in current folder
+            for files in os.walk("./ffmpeg"): # Identify files in folder download created to contain ffmpeg
+                for filename in files: # For every file name
+                    if "exe" in str(filename): # If its the executable
+                        self.ffmpeg_executable = str(filename[0]) # set the global definition of ffmpeg_executable to the filename
 
 
         while True: # Loop to query the user on whether they want the output files to be in audio or video format
