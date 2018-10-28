@@ -3,7 +3,7 @@
 Small project I have been working on this week that is now fully operational, It does exactly what the title
 says, it downloads youtube videos into either an audio or video format
 
-I will be releasing an executable version of the program soon 
+The executable version of the program can be found [here :heart:](https://github.com/Merhlim/YoutubeDownloader/wiki/Executable)
 
 ## Features
 
