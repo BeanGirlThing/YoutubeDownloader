@@ -239,18 +239,23 @@ class main:  # Define the main class
 
     def get_video_information(self,url): # Get video information function
         try: # Try catch
-            video = pytube.YouTube(url) # Attempt to get the video object based on the url inputted
-            title = video.title # Get the video title
-            length = video.length # Get the video length
-            views = video.views # Get the videos view total
+            video = pytube.YouTube(url)  # Attempt to get the video object based on the url inputted
+            title = video.title  # Get the video title
+            length = video.length  # Get the video length
+            try:
+                views = video.views  # Get the videos view total
+            except KeyError:
+                print("Could not get video view count")
+                input("Press enter to continue")
+                views = "Error N/A"
             video_object = [
                 video,
                 title,
                 length,
                 views,
                 url
-            ] # Put all of that information into a list
-            return video_object # return that list
+            ]  # Put all of that information into a list
+            return video_object  # return that list
 
         except: # If the URL is invalid
             print("We have run into an error processing the URL\nPlease check that it is correct")
